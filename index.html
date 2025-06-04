@@ -1,177 +1,613 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>French Vocabulary Learning App</title>
+<title>French Vocab Learning</title>
 <style>
   body {
     font-family: Arial, sans-serif;
-    background: #f3f4f6;
-    margin: 0; padding: 20px;
+    max-width: 700px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background: #f8fafc;
+    color: #111827;
   }
-  .container {
-    max-width: 600px;
-    margin: auto;
-    background: white;
-    border-radius: 10px;
-    padding: 20px;
-    box-shadow: 0 4px 6px rgb(0 0 0 / 0.1);
-  }
-  h1 {
+  h1, h2 {
     text-align: center;
   }
-  button {
+  .progress-bar {
+    height: 20px;
+    background: #ddd;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 1rem 0 2rem 0;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
     background: #2563eb;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+  }
+  .activity {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 8px rgb(0 0 0 / 0.1);
+    margin-bottom: 2rem;
+  }
+  button {
+    background-color: #2563eb;
     color: white;
     border: none;
-    padding: 10px 15px;
-    border-radius: 6px;
-    cursor: pointer;
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
     font-weight: 600;
+    cursor: pointer;
+    margin-top: 1rem;
   }
   button:disabled {
     background: #9ca3af;
     cursor: not-allowed;
   }
-  .progress-bar {
-    height: 10px;
-    background: #d1d5db;
-    border-radius: 5px;
-    overflow: hidden;
-    margin-bottom: 20px;
-  }
-  .progress-bar-fill {
-    background: #2563eb;
-    height: 100%;
-    width: 0%;
-    transition: width 0.3s ease;
-  }
-  .question {
-    margin-bottom: 20px;
-  }
-  input[type=text] {
-    padding: 8px;
+  input[type=text], textarea {
     width: 100%;
-    margin-top: 5px;
-    margin-bottom: 15px;
-    border: 1px solid #d1d5db;
-    border-radius: 5px;
+    padding: 0.7rem;
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    border: 2px solid #ccc;
+    border-radius: 12px;
+    box-sizing: border-box;
   }
   .feedback {
-    color: #ef4444;
-    font-weight: 600;
-    margin-top: -10px;
-    margin-bottom: 10px;
+    margin-top: 0.8rem;
+    font-style: italic;
+    color: #b91c1c;
   }
-  .result {
-    background: #dcfce7;
-    border: 1px solid #22c55e;
-    color: #15803d;
-    padding: 10px;
-    border-radius: 8px;
-    margin-top: 20px;
+  .matching-list, .reorder-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  .matching-item, .reorder-item {
+    background: #e0e7ff;
+    margin-bottom: 0.5rem;
+    padding: 0.7rem 1rem;
+    border-radius: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .matching-item.selected {
+    background: #2563eb;
+    color: white;
+  }
+  .reorder-item.dragging {
+    opacity: 0.5;
+  }
+  .results-summary {
+    background: #d1fae5;
+    padding: 1rem;
+    border-radius: 12px;
+    font-weight: 600;
   }
 </style>
 </head>
 <body>
-<div class="container" id="root">
-  <h1>French Vocabulary Learning</h1>
-  <div class="progress-bar"><div class="progress-bar-fill" id="progress"></div></div>
-  <div id="app-content"></div>
-  <div style="text-align:center; margin-top:20px;">
-    <button id="next-btn" disabled>Next</button>
-  </div>
+
+<h1>Apprendre le vocabulaire français</h1>
+
+<div class="progress-bar" aria-label="Progress">
+  <div class="progress-fill"></div>
 </div>
 
+<div id="app"></div>
+
 <script>
-window.onload = function() {
-  console.log("App starting...");
+// ===== VOCABULARY DATA =====
+const vocab = [
+  { type: "n.m", french: "Un entretien", english: "An interview" },
+  { type: "v", french: "Il y a", english: "There is/There are" },
+  { type: "adj", french: "Dernier", english: "Last/latest" },
+  { type: "v", french: "Il y aura", english: "There will be" },
+  { type: "v", french: "Chanter", english: "To sing" },
+  { type: "exp", french: "Avoir confiance", english: "To have confidence" },
+  { type: "n.f", french: "Une soirée", english: "An evening" },
+  { type: "n.m", french: "Un concours", english: "A competition" },
+  { type: "v", french: "J’espère", english: "I hope" },
+  { type: "v", french: "Gagner", english: "To win" },
+  { type: "exp", french: "Samedi prochain", english: "Next Saturday" },
+  { type: "exp", french: "On m’a dit que", english: "They told me that" },
+  { type: "exp", french: "À l’âge de cinq ans", english: "At the age of five" },
+  { type: "exp", french: "Faire carrière dans", english: "To have a career in" },
+  { type: "v", french: "Je rêve", english: "I dream" },
+  { type: "adj", french: "Dur", english: "Hard/difficult" },
+  { type: "n.m", french: "Un métier", english: "A job" },
+  { type: "exp", french: "Devenir célèbre/connu(e)", english: "To become famous/known" },
+  { type: "exp", french: "Plusieurs fois", english: "Several times" },
+  { type: "exp", french: "C’est le meilleur du monde", english: "It’s the best in the world" },
+];
 
-  // Vocabulary and questions setup
-  const vocabList = [
-    { french: "chien", english: "dog" },
-    { french: "chat", english: "cat" },
-    { french: "maison", english: "house" },
-    { french: "voiture", english: "car" },
-    { french: "livre", english: "book" }
-  ];
+// ===== ACTIVITIES SETUP =====
+// We will have 4 activities: Matching, Fill-in-blank, Sentence reordering, Writing with feedback
+const activities = [
+  {
+    id: "matching",
+    title: "Associez les mots français avec leur traduction anglaise",
+    render: renderMatchingActivity,
+    check: checkMatchingActivity,
+  },
+  {
+    id: "fillBlank",
+    title: "Complétez la phrase avec le mot correct",
+    render: renderFillBlankActivity,
+    check: checkFillBlankActivity,
+  },
+  {
+    id: "reorder",
+    title: "Remettez les mots dans le bon ordre pour faire une phrase correcte",
+    render: renderReorderActivity,
+    check: checkReorderActivity,
+  },
+  {
+    id: "writing",
+    title: "Écrivez une phrase utilisant un mot de vocabulaire",
+    render: renderWritingActivity,
+    check: checkWritingActivity,
+  }
+];
 
-  let currentIndex = 0;
+// State variables
+let currentStep = 0;
+let userAnswers = {};
+const appDiv = document.getElementById("app");
+const progressFill = document.querySelector(".progress-fill");
 
-  // Elements
-  const progressFill = document.getElementById("progress");
-  const contentDiv = document.getElementById("app-content");
-  const nextBtn = document.getElementById("next-btn");
+function updateProgress() {
+  const percent = ((currentStep) / activities.length) * 100;
+  progressFill.style.width = `${percent}%`;
+}
 
-  // Show first question
-  showQuestion();
+function showNext() {
+  currentStep++;
+  renderCurrentStep();
+}
 
-  nextBtn.addEventListener("click", () => {
-    currentIndex++;
-    if (currentIndex < vocabList.length) {
-      showQuestion();
-    } else {
-      showResults();
-    }
-    nextBtn.disabled = true;
-    updateProgress();
-  });
+function renderCurrentStep() {
+  updateProgress();
+  appDiv.innerHTML = ""; // clear
 
-  function showQuestion() {
-    const word = vocabList[currentIndex];
-    contentDiv.innerHTML = `
-      <div class="question">
-        <label>Translate this French word into English:</label>
-        <strong style="display:block; font-size:1.5rem; margin:10px 0;">${word.french}</strong>
-        <input type="text" id="answer-input" autocomplete="off" />
-        <div class="feedback" id="feedback"></div>
-      </div>
-    `;
-    const input = document.getElementById("answer-input");
-    const feedback = document.getElementById("feedback");
+  if (currentStep < activities.length) {
+    const activity = activities[currentStep];
+    const container = document.createElement("div");
+    container.className = "activity";
+    const title = document.createElement("h2");
+    title.textContent = activity.title;
+    container.appendChild(title);
 
-    input.focus();
-    input.value = "";
-    feedback.textContent = "";
+    activity.render(container);
 
-    input.addEventListener("input", () => {
-      const userAnswer = input.value.trim().toLowerCase();
-      if (!userAnswer) {
-        feedback.textContent = "";
-        nextBtn.disabled = true;
+    const btn = document.createElement("button");
+    btn.textContent = currentStep === activities.length - 1 ? "Voir les résultats" : "Suivant";
+    btn.disabled = true;
+
+    btn.addEventListener("click", () => {
+      // Save/check answers
+      if (!activity.check()) {
+        alert("Veuillez répondre correctement avant de continuer.");
         return;
       }
-      if (userAnswer === word.english.toLowerCase()) {
-        feedback.textContent = "Correct!";
-        feedback.style.color = "#22c55e";
-        nextBtn.disabled = false;
-      } else {
-        feedback.textContent = "Try again.";
-        feedback.style.color = "#ef4444";
-        nextBtn.disabled = true;
-      }
+      showNext();
     });
-  }
 
-  function updateProgress() {
-    const percent = (currentIndex / vocabList.length) * 100;
-    progressFill.style.width = `${percent}%`;
-  }
+    container.appendChild(btn);
+    appDiv.appendChild(container);
 
-  function showResults() {
-    contentDiv.innerHTML = `
-      <div class="result">
-        <h2>Well done! You completed the vocabulary practice.</h2>
-        <p>You answered all words correctly.</p>
-      </div>
-    `;
-    nextBtn.style.display = "none";
+    // Enable button if input is valid in each activity - handled by each render function
+  } else {
+    renderResults();
     progressFill.style.width = "100%";
   }
-
-  updateProgress();
 }
+
+// --- Activity 1: Matching ---
+function renderMatchingActivity(container) {
+  // We pick 5 vocab randomly for the exercise
+  const selected = shuffleArray(vocab).slice(0, 5);
+
+  // Show French words on left, English on right shuffled
+  const leftList = document.createElement("ul");
+  leftList.className = "matching-list";
+  const rightList = document.createElement("ul");
+  rightList.className = "matching-list";
+
+  selected.forEach((item, i) => {
+    const liLeft = document.createElement("li");
+    liLeft.textContent = item.french;
+    liLeft.className = "matching-item";
+    liLeft.dataset.index = i;
+    liLeft.dataset.side = "left";
+    leftList.appendChild(liLeft);
+
+    const liRight = document.createElement("li");
+    liRight.textContent = item.english;
+    liRight.className = "matching-item";
+    liRight.dataset.index = i;
+    liRight.dataset.side = "right";
+    rightList.appendChild(liRight);
+  });
+
+  // Shuffle right list visually
+  shuffleListItems(rightList);
+
+  container.appendChild(document.createTextNode("Cliquez sur un mot français puis sur sa traduction anglaise correspondante."));
+  container.appendChild(document.createElement("br"));
+  container.appendChild(document.createElement("br"));
+  const listsContainer = document.createElement("div");
+  listsContainer.style.display = "flex";
+  listsContainer.style.justifyContent = "space-between";
+  listsContainer.style.gap = "1rem";
+
+  listsContainer.appendChild(leftList);
+  listsContainer.appendChild(rightList);
+  container.appendChild(listsContainer);
+
+  // Store selection state
+  let selectedFrench = null;
+  let selectedEnglish = null;
+
+  const btn = container.querySelector("button");
+
+  function updateButton() {
+    btn.disabled = Object.keys(userAnswers.matching || {}).length !== selected.length;
+  }
+
+  leftList.querySelectorAll(".matching-item").forEach(el => {
+    el.addEventListener("click", () => {
+      if (selectedFrench === el.dataset.index) {
+        selectedFrench = null;
+        el.classList.remove("selected");
+      } else {
+        // Deselect previous
+        leftList.querySelectorAll(".matching-item").forEach(e => e.classList.remove("selected"));
+        selectedFrench = el.dataset.index;
+        el.classList.add("selected");
+      }
+    });
+  });
+
+  rightList.querySelectorAll(".matching-item").forEach(el => {
+    el.addEventListener("click", () => {
+      if (selectedEnglish === el.dataset.index) {
+        selectedEnglish = null;
+        el.classList.remove("selected");
+      } else {
+        rightList.querySelectorAll(".matching-item").forEach(e => e.classList.remove("selected"));
+        selectedEnglish = el.dataset.index;
+        el.classList.add("selected");
+      }
+
+      // If both selected, save pair
+      if (selectedFrench !== null && selectedEnglish !== null) {
+        if (!userAnswers.matching) userAnswers.matching = {};
+        userAnswers.matching[selectedFrench] = selectedEnglish;
+
+        // Disable matched items
+        leftList.querySelectorAll(".matching-item").forEach(e => {
+          if (userAnswers.matching[e.dataset.index] !== undefined) e.style.opacity = "0.5";
+          else e.style.opacity = "1";
+          e.classList.remove("selected");
+        });
+        rightList.querySelectorAll(".matching-item").forEach(e => {
+          const matchedRightIndexes = Object.values(userAnswers.matching);
+          if (matchedRightIndexes.includes(e.dataset.index)) e.style.opacity = "0.5";
+          else e.style.opacity = "1";
+          e.classList.remove("selected");
+        });
+
+        selectedFrench = null;
+        selectedEnglish = null;
+        updateButton();
+      }
+    });
+  });
+}
+
+// Check matching answers
+function checkMatchingActivity() {
+  const answers = userAnswers.matching;
+  if (!answers) return false;
+
+  // Check all 5 matched and correct (key == value)
+  for (const key in answers) {
+    if (key !== answers[key]) return false;
+  }
+  return Object.keys(answers).length === 5;
+}
+
+// --- Activity 2: Fill in the blank ---
+function renderFillBlankActivity(container) {
+  // Pick 1 vocab phrase with "Il y a" or similar structure for fill blank
+  // For demo, pick one with "Il y a" (type v)
+  const phrase = "______ une soirée ce soir."; // Il y a une soirée ce soir.
+  const answer = "Il y a";
+
+  const p = document.createElement("p");
+  p.textContent = phrase;
+  container.appendChild(p);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Complétez la phrase";
+  container.appendChild(input);
+
+  const feedback = document.createElement("div");
+  feedback.className = "feedback";
+  container.appendChild(feedback);
+
+  const btn = container.querySelector("button");
+
+  input.addEventListener("input", () => {
+    if (input.value.trim().toLowerCase() === answer.toLowerCase()) {
+      feedback.textContent = "Correct!";
+      feedback.style.color = "green";
+      btn.disabled = false;
+      userAnswers.fillBlank = input.value.trim();
+    } else {
+      feedback.textContent = "Essayez encore...";
+      feedback.style.color = "#b91c1c";
+      btn.disabled = true;
+      userAnswers.fillBlank = null;
+    }
+  });
+
+  btn.disabled = true;
+}
+
+// Check fill blank
+function checkFillBlankActivity() {
+  return !!userAnswers.fillBlank;
+}
+
+// --- Activity 3: Sentence reordering ---
+function renderReorderActivity(container) {
+  // Sentence: "Je rêve de devenir célèbre"
+  // Shuffled words for user to reorder
+
+  const sentence = ["Je", "rêve", "de", "devenir", "célèbre"];
+  const shuffled = shuffleArray(sentence.slice());
+
+  container.appendChild(document.createTextNode("Remettez les mots dans le bon ordre :"));
+  container.appendChild(document.createElement("br"));
+  container.appendChild(document.createElement("br"));
+
+  const list = document.createElement("ul");
+  list.className = "reorder-list";
+
+  shuffled.forEach(word => {
+    const li = document.createElement("li");
+    li.textContent = word;
+    li.className = "reorder-item";
+    li.draggable = true;
+    list.appendChild(li);
+  });
+
+  container.appendChild(list);
+
+  // Drag and drop reorder logic
+  let dragSrcEl = null;
+
+  function handleDragStart(e) {
+    dragSrcEl = this;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/html", this.innerHTML);
+    this.classList.add("dragging");
+  }
+  function handleDragOver(e) {
+    if (e.preventDefault) e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    return false;
+  }
+  function handleDragEnter() {
+    this.classList.add("over");
+  }
+  function handleDragLeave() {
+    this.classList.remove("over");
+  }
+  function handleDrop(e) {
+    if (e.stopPropagation) e.stopPropagation();
+    if (dragSrcEl !== this) {
+      dragSrcEl.innerHTML = this.innerHTML;
+      this.innerHTML = e.dataTransfer.getData("text/html");
+    }
+    return false;
+  }
+  function handleDragEnd() {
+    list.querySelectorAll(".reorder-item").forEach(item => {
+      item.classList.remove("over");
+      item.classList.remove("dragging");
+    });
+    checkReorderAnswer();
+  }
+
+  list.querySelectorAll(".reorder-item").forEach(item => {
+    item.addEventListener("dragstart", handleDragStart);
+    item.addEventListener("dragenter", handleDragEnter);
+    item.addEventListener("dragover", handleDragOver);
+    item.addEventListener("dragleave", handleDragLeave);
+    item.addEventListener("drop", handleDrop);
+    item.addEventListener("dragend", handleDragEnd);
+  });
+
+  // Button enable/disable depending on correctness
+  const btn = container.querySelector("button");
+  btn.disabled = true;
+
+  function checkReorderAnswer() {
+    const currentOrder = Array.from(list.children).map(li => li.textContent);
+    const correct = arraysEqual(currentOrder, sentence);
+    if (correct) {
+      btn.disabled = false;
+      userAnswers.reorder = true;
+    } else {
+      btn.disabled = true;
+      userAnswers.reorder = false;
+    }
+  }
+}
+
+// Check reorder answers
+function checkReorderActivity() {
+  return !!userAnswers.reorder;
+}
+
+// --- Activity 4: Writing with grammar feedback ---
+function renderWritingActivity(container) {
+  container.appendChild(document.createTextNode("Écrivez une phrase utilisant un mot de vocabulaire de la liste."));
+
+  const textarea = document.createElement("textarea");
+  textarea.rows = 4;
+  textarea.placeholder = "Votre phrase ici...";
+  container.appendChild(textarea);
+
+  const feedback = document.createElement("div");
+  feedback.className = "feedback";
+  container.appendChild(feedback);
+
+  const btn = container.querySelector("button");
+  btn.disabled = true;
+
+  textarea.addEventListener("input", () => {
+    const text = textarea.value.trim();
+
+    if (text.length < 5) {
+      feedback.textContent = "Écrivez une phrase plus longue.";
+      feedback.style.color = "#b91c1c";
+      btn.disabled = true;
+      userAnswers.writing = null;
+      return;
+    }
+
+    // Check if vocab word is present
+    const vocabWords = vocab.map(v => v.french.toLowerCase());
+    const containsVocab = vocabWords.some(word => text.toLowerCase().includes(word));
+
+    if (!containsVocab) {
+      feedback.textContent = "Votre phrase doit contenir au moins un mot du vocabulaire.";
+      feedback.style.color = "#b91c1c";
+      btn.disabled = true;
+      userAnswers.writing = null;
+      return;
+    }
+
+    feedback.textContent = "Phrase acceptée.";
+    feedback.style.color = "green";
+    btn.disabled = false;
+    userAnswers.writing = text;
+  });
+}
+
+// Check writing activity
+function checkWritingActivity() {
+  return !!userAnswers.writing;
+}
+
+// --- Final Results Page ---
+function renderResults() {
+  appDiv.innerHTML = "<h2>Résultats</h2>";
+
+  const summaryDiv = document.createElement("div");
+  summaryDiv.className = "results-summary";
+
+  let correctCount = 0;
+
+  // Matching result
+  if (userAnswers.matching) {
+    const matchingCorrect = Object.keys(userAnswers.matching).every(k => k === userAnswers.matching[k]) && Object.keys(userAnswers.matching).length === 5;
+    summaryDiv.innerHTML += `<p>Association vocabulaire: ${matchingCorrect ? "Correct" : "Incorrect"}</p>`;
+    if (matchingCorrect) correctCount++;
+  }
+
+  // Fill blank
+  if (userAnswers.fillBlank) {
+    summaryDiv.innerHTML += `<p>Complétez la phrase: Correct</p>`;
+    correctCount++;
+  } else {
+    summaryDiv.innerHTML += `<p>Complétez la phrase: Incorrect</p>`;
+  }
+
+  // Sentence reorder
+  if (userAnswers.reorder) {
+    summaryDiv.innerHTML += `<p>Réordonner la phrase: Correct</p>`;
+    correctCount++;
+  } else {
+    summaryDiv.innerHTML += `<p>Réordonner la phrase: Incorrect</p>`;
+  }
+
+  // Writing
+  if (userAnswers.writing) {
+    summaryDiv.innerHTML += `<p>Phrase écrite: Soumis</p>`;
+    correctCount++;
+  } else {
+    summaryDiv.innerHTML += `<p>Phrase écrite: Non soumis</p>`;
+  }
+
+  summaryDiv.innerHTML += `<p><strong>Score total: ${correctCount} / ${activities.length}</strong></p>`;
+
+  appDiv.appendChild(summaryDiv);
+
+  // Email form
+  const form = document.createElement("form");
+  form.innerHTML = `
+    <h3>Envoyez vos résultats à votre professeur</h3>
+    <label for="email">Votre adresse e-mail:</label><br/>
+    <input type="email" id="email" required placeholder="votre.email@example.com" /><br/><br/>
+    <button type="submit">Envoyer les résultats</button>
+  `;
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const email = form.querySelector("#email").value.trim();
+    if (!validateEmail(email)) {
+      alert("Veuillez entrer une adresse e-mail valide.");
+      return;
+    }
+    // For demo: just alert results instead of sending email
+    alert(`Merci !\nLes résultats ont été envoyés à jordan.atkinson@westpark.derby.sch.uk\n\nVotre e-mail: ${email}\nScore: ${correctCount} / ${activities.length}`);
+    form.reset();
+  });
+
+  appDiv.appendChild(form);
+}
+
+// ===== Helper Functions =====
+function shuffleArray(arr) {
+  let a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function shuffleListItems(ul) {
+  const lis = Array.from(ul.children);
+  const shuffled = shuffleArray(lis);
+  ul.innerHTML = "";
+  shuffled.forEach(li => ul.appendChild(li));
+}
+
+function arraysEqual(a1, a2) {
+  return a1.length === a2.length && a1.every((v, i) => v === a2[i]);
+}
+
+function validateEmail(email) {
+  return /\S+@\S+\.\S+/.test(email);
+}
+
+// ===== Start App =====
+renderCurrentStep();
+
 </script>
 </body>
 </html>
