@@ -56,4 +56,122 @@
     margin-top: 5px;
     margin-bottom: 15px;
     border: 1px solid #d1d5db;
-    border-radiu
+    border-radius: 5px;
+  }
+  .feedback {
+    color: #ef4444;
+    font-weight: 600;
+    margin-top: -10px;
+    margin-bottom: 10px;
+  }
+  .result {
+    background: #dcfce7;
+    border: 1px solid #22c55e;
+    color: #15803d;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+<div class="container" id="root">
+  <h1>French Vocabulary Learning</h1>
+  <div class="progress-bar"><div class="progress-bar-fill" id="progress"></div></div>
+  <div id="app-content"></div>
+  <div style="text-align:center; margin-top:20px;">
+    <button id="next-btn" disabled>Next</button>
+  </div>
+</div>
+
+<script>
+window.onload = function() {
+  console.log("App starting...");
+
+  // Vocabulary and questions setup
+  const vocabList = [
+    { french: "chien", english: "dog" },
+    { french: "chat", english: "cat" },
+    { french: "maison", english: "house" },
+    { french: "voiture", english: "car" },
+    { french: "livre", english: "book" }
+  ];
+
+  let currentIndex = 0;
+
+  // Elements
+  const progressFill = document.getElementById("progress");
+  const contentDiv = document.getElementById("app-content");
+  const nextBtn = document.getElementById("next-btn");
+
+  // Show first question
+  showQuestion();
+
+  nextBtn.addEventListener("click", () => {
+    currentIndex++;
+    if (currentIndex < vocabList.length) {
+      showQuestion();
+    } else {
+      showResults();
+    }
+    nextBtn.disabled = true;
+    updateProgress();
+  });
+
+  function showQuestion() {
+    const word = vocabList[currentIndex];
+    contentDiv.innerHTML = `
+      <div class="question">
+        <label>Translate this French word into English:</label>
+        <strong style="display:block; font-size:1.5rem; margin:10px 0;">${word.french}</strong>
+        <input type="text" id="answer-input" autocomplete="off" />
+        <div class="feedback" id="feedback"></div>
+      </div>
+    `;
+    const input = document.getElementById("answer-input");
+    const feedback = document.getElementById("feedback");
+
+    input.focus();
+    input.value = "";
+    feedback.textContent = "";
+
+    input.addEventListener("input", () => {
+      const userAnswer = input.value.trim().toLowerCase();
+      if (!userAnswer) {
+        feedback.textContent = "";
+        nextBtn.disabled = true;
+        return;
+      }
+      if (userAnswer === word.english.toLowerCase()) {
+        feedback.textContent = "Correct!";
+        feedback.style.color = "#22c55e";
+        nextBtn.disabled = false;
+      } else {
+        feedback.textContent = "Try again.";
+        feedback.style.color = "#ef4444";
+        nextBtn.disabled = true;
+      }
+    });
+  }
+
+  function updateProgress() {
+    const percent = (currentIndex / vocabList.length) * 100;
+    progressFill.style.width = `${percent}%`;
+  }
+
+  function showResults() {
+    contentDiv.innerHTML = `
+      <div class="result">
+        <h2>Well done! You completed the vocabulary practice.</h2>
+        <p>You answered all words correctly.</p>
+      </div>
+    `;
+    nextBtn.style.display = "none";
+    progressFill.style.width = "100%";
+  }
+
+  updateProgress();
+}
+</script>
+</body>
+</html>
